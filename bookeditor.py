@@ -143,10 +143,17 @@ def main(argv=None):
     log.debug(args)
 
     # open world
-    if osp.isfile(args.world):
-        world = pymclevel.mclevel.fromFile(args.world)
-    else:
-        world = pymclevel.mclevel.loadWorld(args.world)
+    try:
+        if osp.isfile(args.world):
+            world = pymclevel.mclevel.fromFile(args.world)
+        else:
+            world = pymclevel.mclevel.loadWorld(args.world)
+    except IOError as e:
+        log.error(e)
+        return
+    except pymclevel.mclevel.LoadingError:
+        log.error("Not a valid Minecraft world: '%s'", args.world)
+        return
 
     if args.command == "export":
         log.info("Exporting book from '%s' in '%s' ('%s')",
@@ -167,6 +174,8 @@ def exportbook(world, player, file, separator):
             with openstd(file, 'w') as fd:
                 fd.write(("\n%s\n" % separator).join(pages) + "\n")
             break
+    else:
+        log.error("No book found in inventory!")
 
 
 def importbook(world, player, file, separator):
