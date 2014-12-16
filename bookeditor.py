@@ -148,18 +148,29 @@ def main(argv=None):
     else:
         world = pymclevel.mclevel.loadWorld(args.world)
 
-    log.info("Exporting book from '%s' in '%s' ('%s')",
-             args.player, world.LevelName, world.filename)
+    if args.command == "export":
+        log.info("Exporting book from '%s' in '%s' ('%s')",
+                 args.player, world.LevelName, world.filename)
+        exportbook(world, args.player, args.file, args.separator)
 
-    inventory = world.getPlayerTag(args.player)["Inventory"]
+    elif args.command == "import":
+        log.info("Importing book to '%s' in '%s' ('%s')",
+                 args.player, world.LevelName, world.filename)
+        importbook(world, args.player, args.file, args.separator)
+
+
+def exportbook(world, player, file, separator):
+    inventory = world.getPlayerTag(player)["Inventory"]
     for item in inventory:
         if item["id"].value == 386:  # Book and Quill
             pages = [page.value for page in item["tag"]["pages"]]
-            with openstd(args.file, 'w') as fd:
-                fd.write(("\n%s\n" % args.separator).join(pages) + "\n")
+            with openstd(file, 'w') as fd:
+                fd.write(("\n%s\n" % separator).join(pages) + "\n")
             break
 
 
+def importbook(world, player, file, separator):
+    pass
 
 
 if __name__ == '__main__':
