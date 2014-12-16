@@ -137,37 +137,61 @@ def parseargs(args=None):
 def main(argv=None):
 
     args = parseargs(argv)
-    import pymclevel  # takes a long time, so only imported after argparse
 
     setuplogging(args.loglevel)
     log.debug(args)
 
-    # open world
-    try:
-        if osp.isfile(args.world):
-            world = pymclevel.mclevel.fromFile(args.world)
-        else:
-            world = pymclevel.mclevel.loadWorld(args.world)
-    except IOError as e:
-        log.error(e)
-        return
-    except pymclevel.mclevel.LoadingError:
-        log.error("Not a valid Minecraft world: '%s'", args.world)
-        return
-
     if args.command == "export":
-        log.info("Exporting book from '%s' in '%s' ('%s')",
-                 args.player, world.LevelName, world.filename)
-        exportbook(world, args.player, args.file, args.separator)
+        exportbook(args.world, args.player, args.file, args.separator)
 
     elif args.command == "import":
-        log.info("Importing book to '%s' in '%s' ('%s')",
-                 args.player, world.LevelName, world.filename)
-        importbook(world, args.player, args.file, args.separator)
+        importbook(args.world, args.player, args.file, args.separator)
+
+
+class PyMCLevelError(Exception):
+    pass
+
+
+def load_world(name):
+    import pymclevel  # takes a long time, so only imported after argparse
+    if isinstance(name, pymclevel.MCLevel):
+        return name
+
+    try:
+        if osp.isfile(name):
+            return pymclevel.fromFile(name)
+        else:
+            return pymclevel.loadWorld(name)
+    except IOError as e:
+        raise PyMCLevelError(e)
+    except pymclevel.mclevel.LoadingError:
+        raise PyMCLevelError("Not a valid Minecraft world: '%s'" % name)
+
+
+def get_inventory(world, player):
+    import pymclevel
+    try:
+        return world.getPlayerTag(player)["Inventory"]
+    except pymclevel.PlayerNotFound:
+        raise PyMCLevelError("Player not found in world '%s': %s" % (world.LevelName, player))
 
 
 def exportbook(world, player, file, separator):
-    inventory = world.getPlayerTag(player)["Inventory"]
+    try:
+        world = load_world(world)
+    except PyMCLevelError as e:
+        log.error(e)
+        return
+
+    try:
+        inventory = get_inventory(world, player)
+    except PyMCLevelError as e:
+        log.error(e)
+        return
+
+    log.info("Exporting book from '%s' in '%s' ('%s')",
+             player, world.LevelName, world.filename)
+
     for item in inventory:
         if item["id"].value == 386:  # Book and Quill
             pages = [page.value for page in item["tag"]["pages"]]
