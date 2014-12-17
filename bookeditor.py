@@ -249,11 +249,19 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
 
     from pymclevel import nbt
 
+    # Books that were never written on have no "tag" key,
+    # so create it the same as in-game does:
+    # with a "pages" key containing an empty string as 1st page
+    bookpages = book.setdefault("tag",
+                                nbt.TAG_Compound([nbt.TAG_List([nbt.TAG_String()],
+                                                               "pages",
+                                                               nbt.TAG_STRING)]))["pages"]
+
     if not append:
-        del(book["tag"]["pages"][:])
+        del(bookpages[:])
 
     for page in pages:
-        book["tag"]["pages"].append(nbt.TAG_String(page))
+        bookpages.append(nbt.TAG_String(page))
 
     world.saveInPlace()
 
