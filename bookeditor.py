@@ -200,12 +200,19 @@ def exportbook(world, player=None, filename=None, separator="---"):
 
     for item in inventory:
         if item["id"].value == 386:  # Book and Quill
-            pages = [page.value for page in item["tag"]["pages"]]
-            with openstd(filename, 'w') as fd:
-                fd.write(("\n%s\n" % separator).join(pages) + "\n")
+            book = item
             break
     else:
         log.error("No book found in inventory!")
+        return
+
+    pages = [page.value for page in book["tag"]["pages"]]
+    try:
+        with openstd(filename, 'w') as fd:
+            fd.write(("\n%s\n" % separator).join(pages) + "\n")
+    except IOError as e:
+        log.error(e)
+        return
 
 
 def importbook(world, player=None, filename=None, separator="---", append=True):
