@@ -168,15 +168,17 @@ def load_world(name):
         raise PyMCLevelError("Not a valid Minecraft world: '%s'" % name)
 
 
-def get_inventory(world, player):
+def get_inventory(world, player=None):
     import pymclevel
+    if player is None:
+        player = "Player"
     try:
         return world.getPlayerTag(player)["Inventory"]
     except pymclevel.PlayerNotFound:
         raise PyMCLevelError("Player not found in world '%s': %s" % (world.LevelName, player))
 
 
-def exportbook(world, player, file, separator):
+def exportbook(world, player=None, filename=None, separator="---"):
     try:
         world = load_world(world)
     except PyMCLevelError as e:
@@ -195,7 +197,7 @@ def exportbook(world, player, file, separator):
     for item in inventory:
         if item["id"].value == 386:  # Book and Quill
             pages = [page.value for page in item["tag"]["pages"]]
-            with openstd(file, 'w') as fd:
+            with openstd(filename, 'w') as fd:
                 fd.write(("\n%s\n" % separator).join(pages) + "\n")
             break
     else:
