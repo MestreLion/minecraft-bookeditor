@@ -259,27 +259,20 @@ def exportbook(world, player=None, filename=None, separator="---"):
     try:
         world = load_world(world)
         inventory = get_inventory(world, player)
-    except PyMCLevelError as e:
-        log.error(e)
-        return
 
-    log.info("Exporting book from '%s' in '%s' ('%s')",
-             player, world.LevelName, world.filename)
+        log.info("Exporting book from '%s' in '%s' ('%s')",
+                 player, world.LevelName, world.filename)
 
-    try:
         book, bookpages = get_bookpages(inventory)
-    except LookupError as e:
-        log.error(e)
-        return
 
-    log.debug("Found book in inventory slot %d", book["Slot"].value)
+        log.debug("Found book in inventory slot %d", book["Slot"].value)
 
-    pages = [page.value for page in bookpages]
-    try:
+        pages = [page.value for page in bookpages]
         with openstd(filename, 'w') as (fd, name):
             log.debug("Exporting %d pages to %s", len(pages), name)
             fd.write(("\n%s\n" % separator).join(pages) + "\n")
-    except IOError as e:
+
+    except (PyMCLevelError, LookupError, IOError) as e:
         log.error(e)
         return
 
@@ -290,14 +283,11 @@ def importbook(world, player=None, filename=None, separator="---", append=True, 
         with openstd(filename, 'r') as (fd, name):
             pages = fd.read()[:-1].rstrip(sep).split(sep)
             log.debug("Importing %d pages from %s", len(pages), name)
-    except IOError as e:
-        log.error(e)
-        return
 
-    try:
         world = load_world(world)
         inventory = get_inventory(world, player)
-    except PyMCLevelError as e:
+
+    except (IOError, PyMCLevelError) as e:
         log.error(e)
         return
 
