@@ -239,8 +239,6 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
         log.error("No book found in inventory!")
         return
 
-    log.info(book)
-
     try:
         with openstd(filename, 'r') as fd:
             pages = fd.read()[:-1].split("\n%s\n" % separator)
@@ -248,7 +246,15 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
         log.error(e)
         return
 
-    log.info(pages)
+    from pymclevel import nbt
+
+    if not append:
+        del(book["tag"]["pages"][:])
+
+    for page in pages:
+        book["tag"]["pages"].append(nbt.TAG_String(page))
+
+    world.saveInPlace()
 
 
 if __name__ == '__main__':
