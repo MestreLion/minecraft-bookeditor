@@ -126,6 +126,10 @@ def parseargs(args=None):
                         const="import", action="store_const",
                         help="Import book contents.")
 
+    parser.add_argument('--append', '-a',
+                        default=False, action="store_true",
+                        help="On import, append instead of replacing book contents.")
+
     parser.add_argument(dest='file',
                         nargs="?",
                         help="File to export to or import from."
@@ -145,7 +149,7 @@ def main(argv=None):
         exportbook(args.world, args.player, args.file, args.separator)
 
     elif args.command == "import":
-        importbook(args.world, args.player, args.file, args.separator)
+        importbook(args.world, args.player, args.file, args.separator, args.append)
 
 
 class PyMCLevelError(Exception):
@@ -204,8 +208,31 @@ def exportbook(world, player=None, filename=None, separator="---"):
         log.error("No book found in inventory!")
 
 
-def importbook(world, player, file, separator):
-    pass
+def importbook(world, player=None, filename=None, separator="---", append=True):
+    try:
+        world = load_world(world)
+    except PyMCLevelError as e:
+        log.error(e)
+        return
+
+    try:
+        inventory = get_inventory(world, player)
+    except PyMCLevelError as e:
+        log.error(e)
+        return
+
+    log.info("Importing book to '%s' in '%s' ('%s')",
+             player, world.LevelName, world.filename)
+
+    for item in inventory:
+        if item["id"].value == 386:  # Book and Quill
+            book = item
+            break
+    else:
+        log.error("No book found in inventory!")
+        return
+
+    log.info(book)
 
 
 if __name__ == '__main__':
