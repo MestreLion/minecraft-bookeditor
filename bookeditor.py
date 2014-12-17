@@ -306,7 +306,7 @@ def importbook(world, player=None, filename=None, separator="---", append=True, 
         log.info("%s, so creating a new one.", e)
         try:
             book, bookpages = new_book(inventory)
-            log.debug("Created book in inventory slot %d", book["Slot"].value)
+            log.debug("Created book in inventory slot %d\n%s", book["Slot"].value, book)
         except LookupError as e:
             log.error(e)
             return
