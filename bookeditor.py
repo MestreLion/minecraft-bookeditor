@@ -52,13 +52,16 @@ def launchfile(filename):
 def openstd(filename=None, mode="r"):
     if filename and filename != '-':
         fh = open(filename, mode)
+        name = "'%s'" % filename
     else:
         if mode.startswith("r"):
             fh = sys.stdin
+            name = "<stdin>"
         else:
             fh = sys.stdout
+            name = "<stdout>"
     try:
-        yield fh
+        yield fh, name
     finally:
         if fh is not sys.stdout:
             fh.close()
@@ -208,9 +211,9 @@ def exportbook(world, player=None, filename=None, separator="---"):
         return
 
     pages = [page.value for page in book["tag"]["pages"]]
-    log.debug("Exporting %d pages", len(pages))
     try:
-        with openstd(filename, 'w') as fd:
+        with openstd(filename, 'w') as (fd, name):
+            log.debug("Exporting %d pages to %s", len(pages), name)
             fd.write(("\n%s\n" % separator).join(pages) + "\n")
     except IOError as e:
         log.error(e)
@@ -244,9 +247,9 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
 
     try:
         sep = "\n%s\n" % separator
-        with openstd(filename, 'r') as fd:
+        with openstd(filename, 'r') as (fd, name):
             pages = fd.read()[:-1].rstrip(sep).split(sep)
-            log.debug("Importing %d pages", len(pages))
+            log.debug("Importing %d pages from %s", len(pages), name)
     except IOError as e:
         log.error(e)
         return
