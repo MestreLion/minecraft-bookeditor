@@ -185,6 +185,26 @@ def get_inventory(world, player=None):
         raise PyMCLevelError("Player not found in world '%s': %s" % (world.LevelName, player))
 
 
+def get_bookpages(inventory):
+    from pymclevel import nbt
+
+    for item in inventory:
+        if item["id"].value == 386:  # Book and Quill
+            book = item
+            break
+    else:
+        return None, None
+
+    # Books that were never written on have no "tag" key,
+    # so create it the same as in-game does:
+    # with a "pages" key containing an empty string as 1st page
+    book.setdefault("tag",
+                    nbt.TAG_Compound([nbt.TAG_List([nbt.TAG_String()],
+                                                    "pages",
+                                                    nbt.TAG_STRING)]))
+    return book, book["tag"]["pages"]
+
+
 def exportbook(world, player=None, filename=None, separator="---"):
     try:
         world = load_world(world)
@@ -201,16 +221,14 @@ def exportbook(world, player=None, filename=None, separator="---"):
     log.info("Exporting book from '%s' in '%s' ('%s')",
              player, world.LevelName, world.filename)
 
-    for item in inventory:
-        if item["id"].value == 386:  # Book and Quill
-            book = item
-            log.debug("Found book in inventory slot %d", book["Slot"].value)
-            break
-    else:
+    book, bookpages = get_bookpages(inventory)
+    if not book:
         log.error("No book found in inventory!")
         return
 
-    pages = [page.value for page in book["tag"]["pages"]]
+    log.debug("Found book in inventory slot %d", book["Slot"].value)
+
+    pages = [page.value for page in bookpages]
     try:
         with openstd(filename, 'w') as (fd, name):
             log.debug("Exporting %d pages to %s", len(pages), name)
@@ -236,14 +254,12 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
     log.info("Importing book to '%s' in '%s' ('%s')",
              player, world.LevelName, world.filename)
 
-    for item in inventory:
-        if item["id"].value == 386:  # Book and Quill
-            book = item
-            log.debug("Found book in inventory slot %d", book["Slot"].value)
-            break
-    else:
+    book, bookpages = get_bookpages(inventory)
+    if not book:
         log.error("No book found in inventory!")
         return
+
+    log.debug("Found book in inventory slot %d", book["Slot"].value)
 
     try:
         sep = "\n%s\n" % separator
@@ -255,14 +271,6 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
         return
 
     from pymclevel import nbt
-
-    # Books that were never written on have no "tag" key,
-    # so create it the same as in-game does:
-    # with a "pages" key containing an empty string as 1st page
-    bookpages = book.setdefault("tag",
-                                nbt.TAG_Compound([nbt.TAG_List([nbt.TAG_String()],
-                                                               "pages",
-                                                               nbt.TAG_STRING)]))["pages"]
 
     if not append:
         del(bookpages[:])
