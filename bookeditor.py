@@ -201,12 +201,14 @@ def exportbook(world, player=None, filename=None, separator="---"):
     for item in inventory:
         if item["id"].value == 386:  # Book and Quill
             book = item
+            log.debug("Found book in inventory slot %d", book["Slot"].value)
             break
     else:
         log.error("No book found in inventory!")
         return
 
     pages = [page.value for page in book["tag"]["pages"]]
+    log.debug("Exporting %d pages", len(pages))
     try:
         with openstd(filename, 'w') as fd:
             fd.write(("\n%s\n" % separator).join(pages) + "\n")
@@ -234,6 +236,7 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
     for item in inventory:
         if item["id"].value == 386:  # Book and Quill
             book = item
+            log.debug("Found book in inventory slot %d", book["Slot"].value)
             break
     else:
         log.error("No book found in inventory!")
@@ -243,6 +246,7 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
         sep = "\n%s\n" % separator
         with openstd(filename, 'r') as fd:
             pages = fd.read()[:-1].rstrip(sep).split(sep)
+            log.debug("Importing %d pages", len(pages))
     except IOError as e:
         log.error(e)
         return
