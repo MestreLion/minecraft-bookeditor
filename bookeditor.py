@@ -240,8 +240,9 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
         return
 
     try:
+        sep = "\n%s\n" % separator
         with openstd(filename, 'r') as fd:
-            pages = fd.read()[:-1].split("\n%s\n" % separator)
+            pages = fd.read()[:-1].rstrip(sep).split(sep)
     except IOError as e:
         log.error(e)
         return
