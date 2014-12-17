@@ -241,6 +241,15 @@ def importbook(world, player=None, filename=None, separator="---", append=True):
 
     log.info(book)
 
+    try:
+        with openstd(filename, 'r') as fd:
+            pages = fd.read()[:-1].split("\n%s\n" % separator)
+    except IOError as e:
+        log.error(e)
+        return
+
+    log.info(pages)
+
 
 if __name__ == '__main__':
     try:
