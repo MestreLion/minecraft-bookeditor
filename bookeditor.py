@@ -23,7 +23,6 @@
 
 import sys
 import os
-import subprocess
 import os.path as osp
 import argparse
 import logging
@@ -37,15 +36,6 @@ else:
     myname = __name__
 
 log = logging.getLogger(myname)
-
-
-def launchfile(filename):
-    if sys.platform.startswith('darwin'):
-        subprocess.call(('open', filename))
-    elif os.name == 'nt':  # works for sys.platform 'win32' and 'cygwin'
-        os.system("start %s" % filename)  # could be os.startfile() too
-    else:  # Assume POSIX (Linux, BSD, etc)
-        subprocess.call(('xdg-open', filename))
 
 
 @contextlib.contextmanager
