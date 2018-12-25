@@ -123,6 +123,10 @@ def parseargs(args=None):
                         default=False, action="store_true",
                         help="On import, append instead of replacing book contents.")
 
+    parser.add_argument('--apply', '-A',
+                        default=False, action="store_true",
+                        help="On import, save the world.")
+
     parser.add_argument(dest='file',
                         nargs="?",
                         help="File to export to or import from."
@@ -142,7 +146,7 @@ def main(argv=None):
         exportbook(args.world, args.player, args.file, args.separator)
 
     elif args.command == "import":
-        importbook(args.world, args.player, args.file, args.separator, args.append)
+        importbook(args.world, args.player, args.file, args.separator, args.append, apply=args.apply)
 
 
 class PyMCLevelError(Exception):
@@ -267,7 +271,7 @@ def exportbook(world, player=None, filename=None, separator="---"):
         return
 
 
-def importbook(world, player=None, filename=None, separator="---", append=True, create=True):
+def importbook(world, player=None, filename=None, separator="---", append=True, create=True, apply=False):
     try:
         sep = "\n%s\n" % separator
         with openstd(filename, 'r') as (fd, name):
@@ -309,7 +313,13 @@ def importbook(world, player=None, filename=None, separator="---", append=True, 
     for page in pages:
         bookpages.append(nbt.TAG_String(page))
 
-    world.saveInPlace()
+    if apply:
+        log.info("Applying changes and saving world...")
+        world.saveInPlace()
+    else:
+        log.warn("Not saving world, use --apply to apply changes")
+
+
 
 
 if __name__ == '__main__':
