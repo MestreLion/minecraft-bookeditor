@@ -181,7 +181,7 @@ def get_inventory(world, player=None):
 
 def get_bookpages(inventory):
     for item in inventory:
-        if item["id"].value == 386:  # Book and Quill
+        if item["id"].value in (386, 'minecraft:writable_book'):  # Book and Quill
             book = item
             break
     else:
@@ -201,9 +201,10 @@ def new_booktag():
     return tag
 
 
-def new_book(inventory=None, slot=None):
+def new_book(world, inventory=None, slot=None):
     # TAG_Compound({
     #   "id": TAG_Short(386),
+    #   "id": TAG_String(u'minecraft:writable_book'),
     #   "Damage": TAG_Short(0),
     #   "Count": TAG_Byte(1),
     #   "tag": TAG_Compound({
@@ -224,8 +225,17 @@ def new_book(inventory=None, slot=None):
                 raise LookupError("No empty slot in inventory to create a new book!")
             slot = slots[0]
 
+    # Decide if ID should be numeric or string, 1.8 onwards (14w03a)
+    # Check for known world's tags: 'Version' (1.9, 15w32a) or
+    # 'logAdminCommands' (14w03a)
+    root = world.root_tag['Data']
+    if 'Version' in root or 'logAdminCommands' in root['GameRules']:
+        ItemID = nbt.TAG_String('minecraft:writable_book')
+    else:
+        ItemID = nbt.TAG_Short(386)
+
     book = nbt.TAG_Compound()
-    book["id"]     = nbt.TAG_Short(386)
+    book["id"]     = ItemID
     book["Damage"] = nbt.TAG_Short(0)
     book["Count"]  = nbt.TAG_Byte(1)
     book["Slot"]   = nbt.TAG_Byte(slot)
@@ -299,7 +309,7 @@ def importbook(world, player=None, filename=None, separator="---", append=True, 
 
         log.info("%s, so creating a new one.", e)
         try:
-            book, bookpages = new_book(inventory)
+            book, bookpages = new_book(world, inventory)
             log.debug("Created book in inventory slot %d\n%s", book["Slot"].value, book)
         except LookupError as e:
             log.error(e)
