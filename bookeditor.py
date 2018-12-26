@@ -22,20 +22,11 @@
 """Import and Export Minecraft 'Book and Quill' contents"""
 
 import sys
-import os
 import os.path as osp
 import argparse
 import logging
 import contextlib
-from xdg.BaseDirectory import xdg_cache_home
 
-
-if __name__ == '__main__':
-    myname = osp.basename(osp.splitext(__file__)[0])
-else:
-    myname = __name__
-
-log = logging.getLogger(myname)
 
 
 @contextlib.contextmanager
@@ -55,31 +46,6 @@ def openstd(filename=None, mode="r"):
     finally:
         if fh is not sys.stdout:
             fh.close()
-
-
-def setuplogging(level):
-    # Console output
-    for logger, lvl in [(log, level),
-                        # pymclevel is too verbose
-                        (logging.getLogger("pymclevel"), logging.WARNING)]:
-        sh = logging.StreamHandler()
-        sh.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
-        sh.setLevel(lvl)
-        logger.addHandler(sh)
-
-    # File output
-    logger = logging.getLogger()  # root logger, so it also applies to pymclevel
-    logger.setLevel(logging.DEBUG)  # set to minimum so it doesn't discard file output
-    try:
-        logdir = osp.join(xdg_cache_home, 'minecraft')
-        if not osp.exists(logdir):
-            os.makedirs(logdir)
-        fh = logging.FileHandler(osp.join(logdir, "%s.log" % myname))
-        fh.setFormatter(logging.Formatter('%(asctime)s\t%(levelname)s\t%(name)s\t%(message)s'))
-        fh.setLevel(logging.DEBUG)
-        logger.addHandler(fh)
-    except IOError as e:  # Probably access denied
-        logger.warn("%s\nLogging will not work.", e)
 
 
 def parseargs(args=None):
@@ -136,10 +102,8 @@ def parseargs(args=None):
 
 
 def main(argv=None):
-
     args = parseargs(argv)
-
-    setuplogging(args.loglevel)
+    logging.basicConfig(level=args.loglevel, format='%(levelname)s: %(message)s')
     log.debug(args)
 
     if args.command == "export":
@@ -333,6 +297,7 @@ def importbook(world, player=None, filename=None, separator="---", append=True, 
 
 
 if __name__ == '__main__':
+    log = logging.getLogger(osp.basename(osp.splitext(__file__)[0]))
     try:
         sys.exit(main())
     except Exception as e:
