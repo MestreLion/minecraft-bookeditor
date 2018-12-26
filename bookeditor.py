@@ -16,17 +16,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program. See <http://www.gnu.org/licenses/gpl.html>
 
-# Installing requirements in Debian/Ubuntu:
-# ln -s /PATH/TO/pymclevel /PATH/TO/THIS/SCRIPT
-
 """Import and Export Minecraft 'Book and Quill' contents"""
 
 import sys
 import os.path as osp
-import argparse
 import logging
 import contextlib
 
+import pymctoolslib as mc
 
 
 @contextlib.contextmanager
@@ -49,31 +46,11 @@ def openstd(filename=None, mode="r"):
 
 
 def parseargs(args=None):
-    parser = argparse.ArgumentParser(
-        description="Import and Export Minecraft 'Book and Quill' contents",)
-
-    parser.add_argument('--quiet', '-q', dest='loglevel',
-                        const=logging.WARNING, default=logging.INFO,
-                        action="store_const",
-                        help="Suppress informative messages.")
-
-    parser.add_argument('--verbose', '-v', dest='loglevel',
-                        const=logging.DEBUG,
-                        action="store_const",
-                        help="Verbose mode, output extra info.")
+    parser = mc.basic_parser(__doc__)
 
     parser.add_argument('--separator', '-s',
                         default="---",
                         help="Page separator."
-                            " [Default: %(default)s]")
-
-    parser.add_argument('--world', '-w', default="brave",
-                        help="Minecraft world, either its 'level.dat' file"
-                            " or a name under '~/.minecraft/saves' folder."
-                            " [Default: %(default)s]")
-
-    parser.add_argument('--player', '-p', default="Player",
-                        help="Player name."
                             " [Default: %(default)s]")
 
     parser.add_argument('--export', '-e', dest='command',
@@ -88,10 +65,6 @@ def parseargs(args=None):
     parser.add_argument('--append', '-a',
                         default=False, action="store_true",
                         help="On import, append instead of replacing book contents.")
-
-    parser.add_argument('--apply', '-A',
-                        default=False, action="store_true",
-                        help="On import, save the world.")
 
     parser.add_argument(dest='file',
                         nargs="?",
@@ -113,36 +86,6 @@ def main(argv=None):
         importbook(args.world, args.player, args.file, args.separator, args.append, apply=args.apply)
 
 
-class PyMCLevelError(Exception):
-    pass
-
-
-def load_world(name):
-    import pymclevel  # takes a long time, so only imported after argparse
-    if isinstance(name, pymclevel.MCLevel):
-        return name
-
-    try:
-        if osp.isfile(name):
-            return pymclevel.fromFile(name)
-        else:
-            return pymclevel.loadWorld(name)
-    except IOError as e:
-        raise PyMCLevelError(e)
-    except pymclevel.mclevel.LoadingError:
-        raise PyMCLevelError("Not a valid Minecraft world: '%s'" % name)
-
-
-def get_inventory(world, player=None):
-    import pymclevel
-    if player is None:
-        player = "Player"
-    try:
-        return world.getPlayerTag(player)["Inventory"]
-    except pymclevel.PlayerNotFound:
-        raise PyMCLevelError("Player not found in world '%s': %s" % (world.LevelName, player))
-
-
 def get_bookpages(inventory):
     for item in inventory:
         if item["id"].value in (386, 'minecraft:writable_book'):  # Book and Quill
@@ -159,7 +102,7 @@ def get_bookpages(inventory):
 
 
 def new_booktag():
-    from pymclevel import nbt
+    from pymctoolslib.pymclevel import nbt
     tag = nbt.TAG_Compound()
     tag["pages"] = nbt.TAG_List([nbt.TAG_String()])
     return tag
@@ -178,7 +121,7 @@ def new_book(world, inventory=None, slot=None):
     #   }),
     #   "Slot": TAG_Byte(0),
     # })
-    from pymclevel import nbt
+    from pymctoolslib.pymclevel import nbt
 
     if slot is None:
         if inventory is None:
@@ -225,8 +168,8 @@ def free_slots(inventory):
 
 def exportbook(world, player=None, filename=None, separator="---"):
     try:
-        world = load_world(world)
-        inventory = get_inventory(world, player)
+        world, _ = mc.load_player_dimension(world, player)
+        inventory = mc.Player(_).inventory.get_nbt()
 
         log.info("Exporting book from '%s' in '%s' ('%s')",
                  player, world.LevelName, world.filename)
@@ -240,7 +183,7 @@ def exportbook(world, player=None, filename=None, separator="---"):
             log.debug("Exporting %d pages to %s", len(pages), name)
             fd.write(("\n%s\n" % separator).join(pages) + "\n")
 
-    except (PyMCLevelError, LookupError, IOError) as e:
+    except (mc.MCError, LookupError, IOError) as e:
         log.error(e)
         return
 
@@ -252,10 +195,10 @@ def importbook(world, player=None, filename=None, separator="---", append=True, 
             pages = fd.read()[:-1].rstrip(sep).split(sep)
             log.debug("Importing %d pages from %s", len(pages), name)
 
-        world = load_world(world)
-        inventory = get_inventory(world, player)
+        world, _ = mc.load_player_dimension(world, player)
+        inventory = mc.Player(_).inventory.get_nbt()
 
-    except (IOError, PyMCLevelError) as e:
+    except (mc.MCError, IOError) as e:
         log.error(e)
         return
 
@@ -279,7 +222,7 @@ def importbook(world, player=None, filename=None, separator="---", append=True, 
             log.error(e)
             return
 
-    from pymclevel import nbt
+    from pymctoolslib.pymclevel import nbt
 
     if not append:
         del(bookpages[:])
