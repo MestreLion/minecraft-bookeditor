@@ -26,6 +26,9 @@ import contextlib
 import pymctoolslib as mc
 
 
+log = logging.getLogger(__name__)
+
+
 @contextlib.contextmanager
 def openstd(filename=None, mode="r"):
     if filename and filename != '-':
@@ -33,6 +36,7 @@ def openstd(filename=None, mode="r"):
         name = "'%s'" % filename
     else:
         if mode.startswith("r"):
+            log.info("Reading from standard input, press CTRL+D when done...")
             fh = sys.stdin
             name = "<stdin>"
         else:
@@ -83,7 +87,7 @@ def main(argv=None):
         exportbook(args.world, args.player, args.file, args.separator)
 
     elif args.command == "import":
-        importbook(args.world, args.player, args.file, args.separator, args.append, apply=args.apply)
+        importbook(args.world, args.player, args.file, args.separator, args.append, save=args.save)
 
 
 def get_bookpages(inventory):
@@ -166,15 +170,15 @@ def free_slots(inventory):
     return slots
 
 
-def exportbook(world, player=None, filename=None, separator="---"):
+def exportbook(levelname, playername=None, filename=None, separator="---"):
     try:
-        world, _ = mc.load_player_dimension(world, player)
-        inventory = mc.Player(_).inventory.get_nbt()
+        world = mc.World(levelname)
+        player = world.get_player(playername)
 
-        log.info("Exporting book from '%s' in '%s' ('%s')",
-                 player, world.LevelName, world.filename)
+        log.info("Exporting book from '%s' in '%s' (%s)",
+                 player.name, world.name, world.filename)
 
-        book, bookpages = get_bookpages(inventory)
+        book, bookpages = get_bookpages(player.inventory.get_nbt())
 
         log.debug("Found book in inventory slot %d", book["Slot"].value)
 
@@ -188,25 +192,25 @@ def exportbook(world, player=None, filename=None, separator="---"):
         return
 
 
-def importbook(world, player=None, filename=None, separator="---", append=True, create=True, apply=False):
+def importbook(levelname, playername=None, filename=None, separator="---", append=True, create=True, save=False):
     try:
         sep = "\n%s\n" % separator
         with openstd(filename, 'r') as (fd, name):
             pages = fd.read()[:-1].rstrip(sep).split(sep)
             log.debug("Importing %d pages from %s", len(pages), name)
 
-        world, _ = mc.load_player_dimension(world, player)
-        inventory = mc.Player(_).inventory.get_nbt()
+        world = mc.World(levelname)
+        player = world.get_player(playername)
 
     except (mc.MCError, IOError) as e:
         log.error(e)
         return
 
     log.info("Importing book to '%s' in '%s' ('%s')",
-             player, world.LevelName, world.filename)
+             player.name, world.name, world.filename)
 
     try:
-        book, bookpages = get_bookpages(inventory)
+        book, bookpages = get_bookpages(player.inventory.get_nbt())
         log.debug("Found book in inventory slot %d", book["Slot"].value)
 
     except LookupError as e:
@@ -216,7 +220,7 @@ def importbook(world, player=None, filename=None, separator="---", append=True, 
 
         log.info("%s, so creating a new one.", e)
         try:
-            book, bookpages = new_book(world, inventory)
+            book, bookpages = new_book(world.level, player.inventory.get_nbt())
             log.debug("Created book in inventory slot %d\n%s", book["Slot"].value, book)
         except LookupError as e:
             log.error(e)
@@ -230,11 +234,11 @@ def importbook(world, player=None, filename=None, separator="---", append=True, 
     for page in pages:
         bookpages.append(nbt.TAG_String(page))
 
-    if apply:
+    if save:
         log.info("Applying changes and saving world...")
-        world.saveInPlace()
+        world.level.saveInPlace()
     else:
-        log.warn("Not saving world, use --apply to apply changes")
+        log.warn("Not saving world, use --save to apply changes")
 
 
 
