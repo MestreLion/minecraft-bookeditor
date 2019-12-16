@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #    Copyright (C) 2014 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
@@ -23,7 +23,7 @@ import os.path as osp
 import logging
 import contextlib
 
-import pymctoolslib as mc
+import mcworldlib as mc
 
 
 log = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ def main(argv=None):
 
 def get_bookpages(inventory):
     for item in inventory:
-        if item["id"].value in (386, 'minecraft:writable_book'):  # Book and Quill
+        if item["id"] in (386, 'minecraft:writable_book'):  # Book and Quill
             book = item
             break
     else:
@@ -106,27 +106,11 @@ def get_bookpages(inventory):
 
 
 def new_booktag():
-    from pymctoolslib.pymclevel import nbt
-    tag = nbt.TAG_Compound()
-    tag["pages"] = nbt.TAG_List([nbt.TAG_String()])
+    tag = mc.Compound(pages=mc.List([mc.String("")]))
     return tag
 
 
-def new_book(world, inventory=None, slot=None):
-    # TAG_Compound({
-    #   "id": TAG_Short(386),
-    #   "id": TAG_String(u'minecraft:writable_book'),
-    #   "Damage": TAG_Short(0),
-    #   "Count": TAG_Byte(1),
-    #   "tag": TAG_Compound({
-    #     "pages": TAG_List([
-    #       TAG_String(u''),
-    #     ]),
-    #   }),
-    #   "Slot": TAG_Byte(0),
-    # })
-    from pymctoolslib.pymclevel import nbt
-
+def new_book(inventory=None, slot=None):
     if slot is None:
         if inventory is None:
             slot = 0
@@ -136,21 +120,12 @@ def new_book(world, inventory=None, slot=None):
                 raise LookupError("No empty slot in inventory to create a new book!")
             slot = slots[0]
 
-    # Decide if ID should be numeric or string, 1.8 onwards (14w03a)
-    # Check for known world's tags: 'Version' (1.9, 15w32a) or
-    # 'logAdminCommands' (14w03a)
-    root = world.root_tag['Data']
-    if 'Version' in root or 'logAdminCommands' in root['GameRules']:
-        ItemID = nbt.TAG_String('minecraft:writable_book')
-    else:
-        ItemID = nbt.TAG_Short(386)
-
-    book = nbt.TAG_Compound()
-    book["id"]     = ItemID
-    book["Damage"] = nbt.TAG_Short(0)
-    book["Count"]  = nbt.TAG_Byte(1)
-    book["Slot"]   = nbt.TAG_Byte(slot)
-    book["tag"]    = new_booktag()
+    book = mc.nbt.Compound(**{
+        'id':    mc.nbt.String('minecraft:writable_book'),
+        'Count': mc.nbt.Byte(1),
+        'Slot':  mc.nbt.Byte(slot),
+        'tag':   new_booktag(),
+    })
 
     if inventory is not None:
         inventory.append(book)
@@ -162,9 +137,9 @@ def free_slots(inventory):
     if len(inventory) == 40:  # shortcut for full inventory
         return []
 
-    slots = range(36)
+    slots = list(range(36))
     for item in inventory:
-        slot = item["Slot"].value
+        slot = item["Slot"]
         if slot in slots:
             slots.remove(slot)
     return slots
@@ -172,15 +147,15 @@ def free_slots(inventory):
 
 def exportbook(levelname, playername=None, filename=None, separator="---"):
     try:
-        world = mc.World(levelname)
+        world = mc.load(levelname)
         player = world.get_player(playername)
 
         log.info("Exporting book from '%s' in '%s' (%s)",
                  player.name, world.name, world.filename)
 
-        book, bookpages = get_bookpages(player.inventory.get_nbt())
+        book, bookpages = get_bookpages(player.inventory)
 
-        log.debug("Found book in inventory slot %d", book["Slot"].value)
+        log.debug("Found book in inventory slot %d", book["Slot"])
 
         pages = [page.value for page in bookpages]
         with openstd(filename, 'w') as (fd, name):
@@ -199,7 +174,7 @@ def importbook(levelname, playername=None, filename=None, separator="---", appen
             pages = fd.read()[:-1].rstrip(sep).split(sep)
             log.debug("Importing %d pages from %s", len(pages), name)
 
-        world = mc.World(levelname)
+        world = mc.load(levelname)
         player = world.get_player(playername)
 
     except (mc.MCError, IOError) as e:
@@ -210,8 +185,8 @@ def importbook(levelname, playername=None, filename=None, separator="---", appen
              player.name, world.name, world.filename)
 
     try:
-        book, bookpages = get_bookpages(player.inventory.get_nbt())
-        log.debug("Found book in inventory slot %d", book["Slot"].value)
+        book, bookpages = get_bookpages(player.inventory)
+        log.debug("Found book in inventory slot %d", book["Slot"])
 
     except LookupError as e:
         if not create:
@@ -220,27 +195,19 @@ def importbook(levelname, playername=None, filename=None, separator="---", appen
 
         log.info("%s, so creating a new one.", e)
         try:
-            book, bookpages = new_book(world.level, player.inventory.get_nbt())
-            log.debug("Created book in inventory slot %d\n%s", book["Slot"].value, book)
+            book, bookpages = new_book(player.inventory)
+            log.debug("Created book in inventory slot %d\n%r", book["Slot"], book)
         except LookupError as e:
             log.error(e)
             return
-
-    from pymctoolslib.pymclevel import nbt
 
     if not append:
         del(bookpages[:])
 
     for page in pages:
-        bookpages.append(nbt.TAG_String(page))
+        bookpages.append(mc.nbt.String(page))
 
-    if save:
-        log.info("Applying changes and saving world...")
-        world.level.saveInPlace()
-    else:
-        log.warn("Not saving world, use --save to apply changes")
-
-
+    mc.save_world(world, save)
 
 
 if __name__ == '__main__':
