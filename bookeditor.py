@@ -150,7 +150,7 @@ def exportbook(levelname, playername=None, filename=None, separator="---"):
         world = mc.load(levelname)
         player = world.get_player(playername)
 
-        log.info("Exporting book from '%s' in '%s' (%s)",
+        log.info("Exporting book from '%s' in '%s' (%r)",
                  player.name, world.name, world.filename)
 
         book, pages = get_bookpages(player.inventory)
