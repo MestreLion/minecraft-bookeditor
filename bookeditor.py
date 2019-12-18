@@ -153,11 +153,10 @@ def exportbook(levelname, playername=None, filename=None, separator="---"):
         log.info("Exporting book from '%s' in '%s' (%s)",
                  player.name, world.name, world.filename)
 
-        book, bookpages = get_bookpages(player.inventory)
+        book, pages = get_bookpages(player.inventory)
 
         log.debug("Found book in inventory slot %d", book["Slot"])
 
-        pages = [page.value for page in bookpages]
         with openstd(filename, 'w') as (fd, name):
             log.debug("Exporting %d pages to %s", len(pages), name)
             fd.write(("\n%s\n" % separator).join(pages) + "\n")
